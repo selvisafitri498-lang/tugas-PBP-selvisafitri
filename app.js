@@ -130,12 +130,13 @@ window.addEventListener('appinstalled', () => {
 // DATA BARANG - Fetch dari API
 // ============================================================================
 let semuaDataBarang = [];
+let editingId = null; // ✅ Variable untuk track mode EDIT
 
 // ini dari wbsite asli (infinityfree) yang sudah online hosting
-// const API_BASE = 'https://tokoselvisafitri.infinityfree.me/api-toko';
+const API_BASE = 'https://tokoselvisafitri.infinityfree.me/api-toko';
 
 // ini untuk testing lokal (xampp)
-const API_BASE = 'http://localhost/PBP-selvi-3/api-toko';
+// const API_BASE = 'http://localhost/PBP-selvi-3/api-toko';
 
 async function ambilDataBarang() {
     try {
@@ -208,6 +209,16 @@ function tampilkanDataBarang(dataBarang) {
                 <td class="px-6 py-4 text-right font-semibold text-emerald-600">
                     Rp ${hargaNumber.toLocaleString('id-ID')}
                 </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex justify-center gap-2">
+                        <button onclick="handleEditClick(${barang.id})" class="px-3 py-2 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 active:scale-95 transition-all">
+                            ✏️ Edit
+                        </button>
+                        <button onclick="handleDeleteClick(${barang.id})" class="px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 active:scale-95 transition-all">
+                            🗑️ Hapus
+                        </button>
+                    </div>
+                </td>
             </tr>
         `;
 
@@ -219,7 +230,15 @@ function tampilkanDataBarang(dataBarang) {
                         Rp ${hargaNumber.toLocaleString('id-ID')}
                     </span>
                 </div>
-                <h2 class="text-base font-semibold text-gray-800">${barang.nama_barang}</h2>
+                <h2 class="text-base font-semibold text-gray-800 mb-3">${barang.nama_barang}</h2>
+                <div class="flex gap-2">
+                    <button onclick="handleEditClick(${barang.id})" class="flex-1 px-2 py-2 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 active:scale-95 transition-all">
+                        ✏️ Edit
+                    </button>
+                    <button onclick="handleDeleteClick(${barang.id})" class="flex-1 px-2 py-2 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 active:scale-95 transition-all">
+                        🗑️ Hapus
+                    </button>
+                </div>
             </div>
         `;
     });
@@ -283,14 +302,14 @@ document.getElementById('input-harga').addEventListener('input', function () {
 
 ['input-nama', 'input-harga'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') submitTambahBarang();
+        if (e.key === 'Enter') submitBarang();
     });
 });
 
 // ============================================================================
-// TAMBAH BARANG - Submit ke API
+// SUBMIT BARANG - Bisa Tambah atau Update (tergantung mode editing)
 // ============================================================================
-async function submitTambahBarang() {
+async function submitBarang() {
     const inputNama  = document.getElementById('input-nama');
     const inputHarga = document.getElementById('input-harga');
     const errNama    = document.getElementById('err-nama');
@@ -333,31 +352,54 @@ async function submitTambahBarang() {
     `;
 
     try {
-        const response = await fetch(`${API_BASE}/tambah_barang.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nama_barang: nama, harga: harga }),
-            cache: 'no-store'
-        });
+        // ✅ CEK APAKAH MODE EDIT ATAU TAMBAH
+        if (editingId) {
+            // MODE EDIT - gunakan PUT
+            const response = await fetch(`${API_BASE}/update_barang.php`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id: editingId,
+                    nama_barang: nama, 
+                    harga: harga 
+                }),
+                cache: 'no-store'
+            });
 
-        const hasil = await response.json();
+            const hasil = await response.json();
 
-        if (hasil.status === 'success') {
-            inputNama.value  = '';
-            inputHarga.value = '';
-            document.getElementById('preview-harga').textContent = '';
-
-            showToast(`✅ "${nama}" berhasil ditambahkan!`, 'success');
-
-            // ✅ Refresh data — selalu ambil dari server karena cache sudah dimatikan
-            await ambilDataBarang();
-
+            if (hasil.status === 'success') {
+                showToast(`✅ "${nama}" berhasil diperbarui!`, 'success');
+                resetForm();
+                await ambilDataBarang();
+            } else {
+                showToast(`❌ ${hasil.message}`, 'error');
+            }
         } else {
-            showToast(`❌ ${hasil.message}`, 'error');
+            // MODE TAMBAH - gunakan POST
+            const response = await fetch(`${API_BASE}/tambah_barang.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nama_barang: nama, harga: harga }),
+                cache: 'no-store'
+            });
+
+            const hasil = await response.json();
+
+            if (hasil.status === 'success') {
+                inputNama.value  = '';
+                inputHarga.value = '';
+                document.getElementById('preview-harga').textContent = '';
+
+                showToast(`✅ "${nama}" berhasil ditambahkan!`, 'success');
+                await ambilDataBarang();
+            } else {
+                showToast(`❌ ${hasil.message}`, 'error');
+            }
         }
 
     } catch (error) {
-        console.error('Gagal tambah barang:', error);
+        console.error('Gagal submit barang:', error);
         showToast('❌ Gagal terhubung ke server. Periksa koneksi.', 'error');
     } finally {
         btnTambah.disabled = false;
@@ -368,6 +410,146 @@ async function submitTambahBarang() {
             Tambah Barang
         `;
     }
+}
+
+// ============================================================================
+// EDIT BARANG - Load data ke form
+// ============================================================================
+function handleEditClick(id) {
+    // ✅ Convert id ke number untuk type-safe comparison
+    const idNum = parseInt(id);
+    console.log('Edit clicked - Looking for ID:', idNum, 'Type:', typeof idNum);
+    console.log('Available data:', semuaDataBarang);
+    
+    // ✅ Cari data barang dari array sesuai id
+    const barang = semuaDataBarang.find(b => {
+        // Debug: log setiap perbandingan
+        console.log(`  Comparing: b.id=${b.id} (${typeof b.id}) vs idNum=${idNum} (${typeof idNum}) -> ${b.id === idNum}`);
+        return parseInt(b.id) === idNum;
+    });
+    
+    if (!barang) {
+        console.error('❌ Data not found for ID:', idNum);
+        showToast('❌ Data tidak ditemukan', 'error');
+        return;
+    }
+
+    console.log('✅ Found barang:', barang);
+
+    // ✅ Set mode editing
+    editingId = idNum;
+
+    // ✅ Isi form dengan data barang
+    document.getElementById('input-nama').value = barang.nama_barang;
+    document.getElementById('input-harga').value = barang.harga;
+
+    // ✅ Update preview harga
+    const preview = document.getElementById('preview-harga');
+    preview.textContent = 'Rp ' + parseInt(barang.harga).toLocaleString('id-ID');
+    preview.classList.remove('text-gray-400');
+    preview.classList.add('text-emerald-600', 'font-semibold');
+
+    // ✅ Tampilkan tombol Batal dan ubah teks tombol Tambah
+    const btnTambah = document.getElementById('btn-tambah');
+    const btnBatal = document.getElementById('btn-batal');
+    
+    btnTambah.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        Update Barang
+    `;
+    btnBatal.classList.remove('hidden');
+    btnBatal.classList.add('flex');
+
+    // ✅ Scroll ke form dan highlight
+    scrollToForm();
+    showToast(`📝 Mode Edit: "${barang.nama_barang}"`, 'info');
+}
+
+// ============================================================================
+// DELETE BARANG - Confirm dialog + API DELETE
+// ============================================================================
+async function handleDeleteClick(id) {
+    // ✅ Convert id ke number untuk type-safe comparison
+    const idNum = parseInt(id);
+    console.log('Delete clicked - Looking for ID:', idNum, 'Type:', typeof idNum);
+    
+    // ✅ Cari data barang dari array
+    const barang = semuaDataBarang.find(b => parseInt(b.id) === idNum);
+    
+    if (!barang) {
+        console.error('❌ Data not found for ID:', idNum);
+        showToast('❌ Data tidak ditemukan', 'error');
+        return;
+    }
+
+    console.log('✅ Found barang to delete:', barang);
+
+    // ✅ Confirm dialog
+    if (!confirm(`Yakin ingin menghapus "${barang.nama_barang}"?`)) {
+        return; // User cancel
+    }
+
+    try {
+        // ✅ Kirim DELETE request
+        const response = await fetch(`${API_BASE}/hapus_barang.php`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: idNum }),
+            cache: 'no-store'
+        });
+
+        const hasil = await response.json();
+
+        if (hasil.status === 'success') {
+            showToast(`✅ "${barang.nama_barang}" berhasil dihapus!`, 'success');
+            // ✅ Refresh tabel otomatis
+            await ambilDataBarang();
+        } else {
+            showToast(`❌ ${hasil.message}`, 'error');
+        }
+
+    } catch (error) {
+        console.error('Gagal hapus barang:', error);
+        showToast('❌ Gagal terhubung ke server. Periksa koneksi.', 'error');
+    }
+}
+
+// ============================================================================
+// RESET FORM - Kembali ke mode TAMBAH
+// ============================================================================
+function resetForm() {
+    // ✅ Clear edit mode
+    editingId = null;
+
+    // ✅ Kosongkan form
+    document.getElementById('input-nama').value = '';
+    document.getElementById('input-harga').value = '';
+    document.getElementById('preview-harga').textContent = '';
+
+    // ✅ Clear error messages
+    document.getElementById('err-nama').classList.add('hidden');
+    document.getElementById('err-harga').classList.add('hidden');
+    document.getElementById('input-nama').classList.remove('border-red-400');
+    document.getElementById('input-harga').classList.remove('border-red-400');
+
+    // ✅ Ubah tombol kembali ke "Tambah Barang"
+    const btnTambah = document.getElementById('btn-tambah');
+    const btnBatal = document.getElementById('btn-batal');
+
+    btnTambah.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        Tambah Barang
+    `;
+    btnBatal.classList.add('hidden');
+    btnBatal.classList.remove('flex');
+
+    // ✅ Focus ke input nama
+    document.getElementById('input-nama').focus();
+    showToast('🔄 Mode reset ke Tambah Barang', 'info');
 }
 
 // ============================================================================
