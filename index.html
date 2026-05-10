@@ -309,14 +309,23 @@
                 </div>
 
                 <!-- Tombol Submit -->
-                <div class="flex items-end">
-                    <button id="btn-tambah" onclick="submitTambahBarang()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600
+                <div class="flex items-end gap-2">
+                    <button id="btn-tambah" onclick="submitBarang()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600
                            text-white font-bold rounded-xl shadow-md hover:shadow-emerald-200 hover:shadow-lg
                            hover:scale-105 active:scale-95 transition-all duration-200 text-sm">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                         </svg>
                         Tambah Barang
+                    </button>
+                    
+                    <button id="btn-batal" onclick="resetForm()" class="hidden w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gray-400
+                           text-white font-bold rounded-xl shadow-md hover:shadow-gray-300 hover:shadow-lg
+                           hover:scale-105 active:scale-95 transition-all duration-200 text-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Batal
                     </button>
                 </div>
 
@@ -383,6 +392,7 @@
                             <th class="px-6 py-4 font-semibold text-sm">NO</th>
                             <th class="px-6 py-4 font-semibold text-sm">Nama Barang</th>
                             <th class="px-6 py-4 text-right font-semibold text-sm">Harga</th>
+                            <th class="px-6 py-4 text-center font-semibold text-sm">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tabel-barang" class="divide-y divide-gray-100"></tbody>
